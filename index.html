@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OverFileDown</title>
+<link rel="icon" type="image/x-icon" href="logo.ico">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
+* {
+    box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at top, #0f2027, #000);
+    color: #fff;
+}
+
+.card {
+    width: 380px;
+    padding: 40px 30px;
+    border-radius: 25px;
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(25px);
+    box-shadow:
+        0 0 30px rgba(0,255,255,0.15),
+        inset 0 0 20px rgba(255,255,255,0.05);
+    text-align: center;
+    animation: fadeIn 1s ease;
+}
+
+h1 {
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: #00f7ff;
+    margin-bottom: 15px;
+}
+
+.logo {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 20px;
+    border-radius: 15px;
+    box-shadow: 0 0 20px #00f7ff33;
+}
+
+.status {
+    margin-top: 20px;
+    font-size: 14px;
+    opacity: 0.85;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(255,255,255,0.2);
+    border-top: 4px solid #00f7ff;
+    border-radius: 50%;
+    margin: 25px auto;
+    animation: spin 1s linear infinite;
+}
+
+.success {
+    color: #00ff9c;
+}
+
+.error {
+    color: #ff4d4d;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+</head>
+
+<body>
+<div class="card">
+    <!-- Logo -->
+    <img src="logo.png" alt="OverFileDown Logo" class="logo">
+
+    <h1>OverFileDown</h1>
+    <div class="spinner" id="spinner"></div>
+    <div class="status" id="status">Preparing download…</div>
+</div>
+
+<script>
+let originalUrl = window.location.search.slice(1);
+
+if (!originalUrl) {
+    showError("No file URL provided.");
+    throw new Error("No URL");
+}
+
+originalUrl = decodeURIComponent(originalUrl);
+const filename = originalUrl.split('/').pop().split('?')[0] || 'downloaded_file';
+
+const proxies = [
+    "https://corsproxy.io/?",
+    "https://api.allorigins.win/raw?url=",
+    "https://thingproxy.freeboard.io/fetch/"
+];
+
+let index = 0;
+
+function showStatus(text) {
+    document.getElementById("status").innerHTML = text;
+}
+
+function showError(text) {
+    document.getElementById("spinner").style.display = "none";
+    document.getElementById("status").innerHTML =
+        `<span class="error">${text}</span>`;
+}
+
+function downloadBlob(blob) {
+    const a = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    URL.revokeObjectURL(url);
+    a.remove();
+
+    document.getElementById("spinner").style.display = "none";
+    showStatus(`<span class="success">Downloaded: ${filename}</span>`);
+}
+
+function tryNextProxy() {
+    if (index >= proxies.length) {
+        showError("All proxies blocked ❌");
+        return;
+    }
+
+    const proxy = proxies[index];
+    showStatus(`Connecting (${index + 1}/${proxies.length})`);
+
+    fetch(proxy + encodeURIComponent(originalUrl))
+        .then(res => res.blob())
+        .then(blob => {
+            if (blob.size < 100) throw new Error("Invalid file");
+            downloadBlob(blob);
+        })
+        .catch(() => {
+            index++;
+            tryNextProxy();
+        });
+}
+
+// Delay so spinner is visible
+setTimeout(() => {
+    tryNextProxy();
+}, 2000);
+</script>
+</body>
+</html>
